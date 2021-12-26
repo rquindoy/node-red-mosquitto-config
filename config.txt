@@ -1,0 +1,86 @@
+// Mosquitto installation https://www.switchdoc.com/2018/02/tutorial-installing-and-testing-mosquitto-mqtt-on-raspberry-pi/
+sudo wget https://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
+sudo apt-key add mosquitto-repo.gpg.key
+cd /etc/apt/sources.list.d/
+sudo wget http://repo.mosquitto.org/debian/mosquitto-buster.list
+
+// Install mosquitto broker
+sudo apt-get install mosquitto
+
+// Mosquitto SSL Configuration http://www.steves-internet-guide.com/mosquitto-tls/
+OpenSSL
+>>openssl req -new -x509 -days 3650 -extensions v3_ca -keyout ca.key -out ca.crt
+passphrase:Not2day
+Country Name (2 letter code) [AU]:US
+State or Province Name (full name) [Some-State]:California
+Locality Name (eg, city) []:Livermore
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:Lovebug CA
+Organizational Unit Name (eg, section) []:Engineering
+Common Name (e.g. server FQDN or YOUR name) []:CA
+Email Address []:reggieq@hotmail.com
+>>node-red://~/cert/ca.key 
+>>node-red://~/cert/ca.crt
+
+>>openssl genrsa -out server.key 2048
+>>node-red://~/cert/server.key
+
+// Change the Organization Name to make this unique otherwise, you will run into errors
+>>openssl req -out server.csr -key server.key -new
+Country Name (2 letter code) [AU]:US
+State or Province Name (full name) [Some-State]:California
+Locality Name (eg, city) []:Livermore
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:Lovebug Node Red
+Organizational Unit Name (eg, section) []:Engineering
+Common Name (e.g. server FQDN or YOUR name) []:node-red.local
+Email Address []:reggieq@hotmail.com
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+>>node-red://~/cert/server.csr
+
+>>openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
+>>node-red://~/cert/server.crt
+
+// Copy certs to ca_certificates
+sudo cp ca.crt /etc/mosquitto/ca_certificates/
+sudo cp {server.crt,server.key} /etc/mosquitto/certs/
+
+// update mosquitto.conf
+sudo nano /etc/mosquitto/mosquitto.conf
+// Add the following
+port 8883
+cafile /etc/mosquitto/ca_certificates/ca.crt
+keyfile /etc/mosquitto/certs/server.key
+certfile /etc/mosquitto/certs/server.crt
+
+// Check status
+sudo systemctl status mosquitto.service
+sudo systemctl start mosquitto.service
+sudo systemctl stop mosquitto.service
+
+
+// NODE-RED
+// Install Node Red https://nodered.org/docs/getting-started/raspberrypi
+bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
+
+// Enable nodered service on boot
+sudo systemctl enable nodered.service
+sudo systemctl start nodered.service
+sudo systemctl status nodered.service
+
+// Stop service
+sudo systemctl stop nodered.service
+
+
+
+Mosquitto service on node-red
+IP:192.168.3.10
+Port:8883
+Username: mosquitto
+Password: Not2day
+CA cert in ~/cert folder
+
+Node Red service on node-red
+Username: admin
+Password: Not2day
