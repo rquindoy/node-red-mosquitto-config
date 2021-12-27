@@ -1,15 +1,73 @@
-// Mosquitto installation https://www.switchdoc.com/2018/02/tutorial-installing-and-testing-mosquitto-mqtt-on-raspberry-pi/
-sudo wget https://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
-sudo apt-key add mosquitto-repo.gpg.key
-cd /etc/apt/sources.list.d/
-sudo wget http://repo.mosquitto.org/debian/mosquitto-buster.list
+// Update machine name
+node-red
 
-// Install mosquitto broker
-sudo apt-get install mosquitto
+// Set static IP Address
+sudo nano /etc/dhcpcd.conf
+// Add the following
+# Example static IP configuration:
+interface eth0
+static ip_address=192.168.3.2/24
+#static ip6_address=fd51:42f8:caae:d92e::ff/64
+static routers=192.168.3.1
+static domain_name_servers=192.168.3.1 8.8.8.8 fd51:42f8:caae:d92e::1
 
+// Update hosts File
+sudo nano /etc/hosts
+// Add the following
+192.168.3.2     node-red.local
+
+#########################################
+
+// NODE-RED
+// Install Node Red https://nodered.org/docs/getting-started/raspberrypi
+bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
+
+// Enable nodered service on boot
+sudo systemctl enable nodered.service
+sudo systemctl start nodered.service
+sudo systemctl status nodered.service
+
+// Install node-red-dashboard
+http://node-red.local:1880/
+menu->Manage palette->Install-> "node-red-dashboard"
+
+// Stop service
+sudo systemctl stop nodered.service
+
+#########################################
+
+// Mosquitto installation https://randomnerdtutorials.com/how-to-install-mosquitto-broker-on-raspberry-pi/
+sudo apt install -y mosquitto
+
+// update mosquitto.conf
+sudo nano /etc/mosquitto/mosquitto.conf
+
+// Add the following
+listener 8883
+allow_anonymous true
+
+// Run mosquitto as a service
+sudo systemctl enable mosquitto.service
+
+// Check status
+sudo systemctl status mosquitto.service
+sudo systemctl start mosquitto.service
+sudo systemctl stop mosquitto.service
+
+#########################################
+
+// Install chromecast_announce
+https://github.com/rquindoy/chromecast_announce/blob/main/requirements.txt
+
+#########################################
+
+// Secure Communications to mosquitto 
 // Mosquitto SSL Configuration http://www.steves-internet-guide.com/mosquitto-tls/
-OpenSSL
->>openssl req -new -x509 -days 3650 -extensions v3_ca -keyout ca.key -out ca.crt
+// Install openssl
+sudo apt-get install openssl
+
+// Generate CA
+openssl req -new -x509 -days 3650 -extensions v3_ca -keyout ca.key -out ca.crt
 passphrase:Not2day
 Country Name (2 letter code) [AU]:US
 State or Province Name (full name) [Some-State]:California
@@ -18,14 +76,17 @@ Organization Name (eg, company) [Internet Widgits Pty Ltd]:Lovebug CA
 Organizational Unit Name (eg, section) []:Engineering
 Common Name (e.g. server FQDN or YOUR name) []:CA
 Email Address []:reggieq@hotmail.com
+// File output
 >>node-red://~/cert/ca.key 
 >>node-red://~/cert/ca.crt
 
->>openssl genrsa -out server.key 2048
+// Generate server key
+openssl genrsa -out server.key 2048
+// File output
 >>node-red://~/cert/server.key
 
 // Change the Organization Name to make this unique otherwise, you will run into errors
->>openssl req -out server.csr -key server.key -new
+openssl req -out server.csr -key server.key -new
 Country Name (2 letter code) [AU]:US
 State or Province Name (full name) [Some-State]:California
 Locality Name (eg, city) []:Livermore
@@ -37,40 +98,33 @@ Please enter the following 'extra' attributes
 to be sent with your certificate request
 A challenge password []:
 An optional company name []:
+// File output
 >>node-red://~/cert/server.csr
 
->>openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
 >>node-red://~/cert/server.crt
 
 // Copy certs to ca_certificates
 sudo cp ca.crt /etc/mosquitto/ca_certificates/
 sudo cp {server.crt,server.key} /etc/mosquitto/certs/
+sudo chmod 0444 /etc/mosquitto/ca_certificates/ca.crt
+sudo chmod 0444 /etc/mosquitto/certs/server.crt
+sudo chmod 0444 /etc/mosquitto/certs/server.key
+
 
 // update mosquitto.conf
 sudo nano /etc/mosquitto/mosquitto.conf
 // Add the following
-port 8883
 cafile /etc/mosquitto/ca_certificates/ca.crt
 keyfile /etc/mosquitto/certs/server.key
 certfile /etc/mosquitto/certs/server.crt
 
-// Check status
-sudo systemctl status mosquitto.service
-sudo systemctl start mosquitto.service
-sudo systemctl stop mosquitto.service
 
 
-// NODE-RED
-// Install Node Red https://nodered.org/docs/getting-started/raspberrypi
-bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
 
-// Enable nodered service on boot
-sudo systemctl enable nodered.service
-sudo systemctl start nodered.service
-sudo systemctl status nodered.service
 
-// Stop service
-sudo systemctl stop nodered.service
+
+
 
 
 
